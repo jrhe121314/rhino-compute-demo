@@ -50,9 +50,10 @@ const generateRhinoObj = (responseStr) => {
           for( let j = 0; j < branch.length; j ++) {
             if (branch[j].type === 'Rhino.Geometry.Mesh') {
               rhinoMeshObject = _decodeItem(branch[j], rhino)
-            } else if (branch[j].type === 'Rhino.Display.DisplayMaterial') {
-              rhinoMaterialObject = _decodeItem(branch[j], rhino)
-            }
+            } 
+            // else if (branch[j].type === 'Rhino.Display.DisplayMaterial') {
+            //   rhinoMaterialObject = _decodeItem(branch[j], rhino)
+            // }
           }
         }
       }
@@ -145,6 +146,106 @@ const generateBuffer = (rhinoMesh, materialObject, format) => {
   })
 }
 
+const generateBufferV2 = (rhinoMesh, materialObject, format) => {
+  // Hack in nodejs
+  const THREE = require('three');
+  const Canvas = require('canvas');
+  const { Blob, FileReader } = require('vblob');
+  const XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
+
+  global.window = global;
+  global.Blob = Blob;
+  global.XMLHttpRequest = XMLHttpRequest;
+  global.FileReader = FileReader;
+  global.THREE = THREE;
+  global.document = {
+    createElement: (nodeName) => {
+      if (nodeName !== 'canvas') throw new Error(`Cannot create node ${nodeName}`);
+      const canvas = new Canvas(256, 256);
+      return canvas;
+    }
+  };
+  // End of hack
+
+  // Three loader
+  let loader = new THREE.BufferGeometryLoader()
+  let geometry = loader.parse(rhinoMesh.toThreejsJSON())
+
+  // Material
+  let threeMaterial = new THREE.MeshBasicMaterial()
+
+  let diffuse
+  switch (materialObject){
+    case "0":
+      diffuse = `rgb(242, 212, 39)`
+      break
+    case "1":
+      diffuse = `rgb(227, 188, 195)`
+      break
+    case "2":
+      diffuse = `rgb(143, 148, 147)`
+      break
+    case "3":
+      diffuse = `rgb(204, 204, 204)`
+      break
+    default:
+      diffuse = `rgb(204, 204, 204)`
+      break
+  }
+
+  const color = new THREE.Color(diffuse);
+  threeMaterial.color = color
+
+  // Mesh
+  let newMesh = new THREE.Mesh(geometry, threeMaterial)
+  newMesh.name = "sku"
+  newMesh.material.name = "sku"
+
+  return new Promise((resolve, reject) => {
+    if (format == 'stl') {
+      require('three/examples/js/exporters/STLExporter');
+      const exporter = new THREE.STLExporter();
+      const result = exporter.parse(newMesh)
+      const blob = new Blob( [result], { type : 'text/plain' } )
+      const reader = new FileReader()
+      reader.onload = function(){
+        const buffer = Buffer.from(reader.result)
+        resolve(buffer)
+      }
+      reader.onloadend = function(){
+        releaseHack()
+      }
+      reader.readAsArrayBuffer(blob)
+    } else {
+      // glb by default
+      require('three/examples/js/exporters/GLTFExporter');
+      const exporter = new THREE.GLTFExporter();
+      const options = {
+        trs: false,
+        onlyVisible: true,
+        truncateDrawRange: true,
+        binary: true,
+        maxTextureSize: 4096 || Infinity // To prevent NaN value
+      };
+      exporter.parse(newMesh, (result) => {
+        if ( result instanceof ArrayBuffer ) {
+          const blob = new Blob( [ result ], { type: 'application/octet-stream' } )
+          const reader = new FileReader()
+          reader.onload = function(){
+            const buffer = Buffer.from(reader.result)
+            resolve(buffer)
+          }
+          reader.onloadend = function(){
+            releaseHack()
+          }
+          reader.readAsArrayBuffer(blob)
+        }
+      }, options)
+    }
+
+  })
+}
+
 const releaseHack = () => {
   global.window = undefined;
   global.Blob = undefined;
@@ -158,6 +259,7 @@ module.exports = {
   solveGH,
   generateRhinoObj,
   generateBuffer,
+  generateBufferV2,
 }
 
 

@@ -16,7 +16,7 @@ const memjs = require('memjs')
 
 // Services
 const { getCache, setCache } = require('../services/cache')
-const { solveGH, generateRhinoObj, generateBuffer } = require('../services/rhino')
+const { solveGH, generateRhinoObj, generateBuffer, generateBufferV2 } = require('../services/rhino')
 const { saveOutputFile } = require('../services/fileStorage')
 
 // In case you have a local memached server
@@ -74,7 +74,8 @@ router.post('/glb', upload.single('File'), async (req, res) => {
         rhinoMeshObject,
         rhinoMaterialObject,
       } = await generateRhinoObj(res.locals.cacheResult)
-      const buffer = await generateBuffer(rhinoMeshObject, rhinoMaterialObject, req.body.Format)
+      // const buffer = await generateBuffer(rhinoMeshObject, rhinoMaterialObject, req.body.Format)
+      const buffer = await generateBufferV2(rhinoMeshObject, req.body["RH_IN:number"], req.body.Format)
       let folderName = req.body.Format
       let fileName = req.file.filename.replace("dxf", req.body.Format)
       await saveOutputFile(buffer, folderName, fileName)
@@ -108,7 +109,8 @@ router.post('/glb', upload.single('File'), async (req, res) => {
         rhinoMeshObject,
         rhinoMaterialObject,
       } = await generateRhinoObj(result)
-      const buffer = await generateBuffer(rhinoMeshObject, rhinoMaterialObject, req.body.Format)
+      // const buffer = await generateBuffer(rhinoMeshObject, rhinoMaterialObject, req.body.Format)
+      const buffer = await generateBufferV2(rhinoMeshObject, req.body["RH_IN:number"], req.body.Format)
       let folderName = req.body.Format
       let fileName = req.file.filename.replace("dxf", req.body.Format)
       await saveOutputFile(buffer, folderName, fileName)
