@@ -64,7 +64,7 @@ const generateRhinoObj = (responseStr) => {
   })
 }
 
-const generateBuffer = (rhinoMesh, materialObject) => {
+const generateBuffer = (rhinoMesh, materialObject, format) => {
   // Hack in nodejs
   const THREE = require('three');
   const Canvas = require('canvas');
@@ -101,29 +101,47 @@ const generateBuffer = (rhinoMesh, materialObject) => {
   newMesh.material.name = "sku"
 
   return new Promise((resolve, reject) => {
-    require('three/examples/js/exporters/GLTFExporter');
-    const exporter = new THREE.GLTFExporter();
-    const options = {
-      trs: false,
-      onlyVisible: true,
-      truncateDrawRange: true,
-      binary: true,
-      maxTextureSize: 4096 || Infinity // To prevent NaN value
-    };
-    exporter.parse(newMesh, (result) => {
-      if ( result instanceof ArrayBuffer ) {
-        let blob = new Blob( [ result ], { type: 'application/octet-stream' } )
-        const reader = new FileReader()
-        reader.onload = function(){
-          const buffer = Buffer.from(reader.result)
-          resolve(buffer)
-        }
-        reader.onloadend = function(){
-          releaseHack()
-        }
-        reader.readAsArrayBuffer(blob)
+    if (format == 'stl') {
+      require('three/examples/js/exporters/STLExporter');
+      const exporter = new THREE.STLExporter();
+      const result = exporter.parse(newMesh)
+      const blob = new Blob( [result], { type : 'text/plain' } )
+      const reader = new FileReader()
+      reader.onload = function(){
+        const buffer = Buffer.from(reader.result)
+        resolve(buffer)
       }
-    }, options)
+      reader.onloadend = function(){
+        releaseHack()
+      }
+      reader.readAsArrayBuffer(blob)
+    } else {
+      // glb by default
+      require('three/examples/js/exporters/GLTFExporter');
+      const exporter = new THREE.GLTFExporter();
+      const options = {
+        trs: false,
+        onlyVisible: true,
+        truncateDrawRange: true,
+        binary: true,
+        maxTextureSize: 4096 || Infinity // To prevent NaN value
+      };
+      exporter.parse(newMesh, (result) => {
+        if ( result instanceof ArrayBuffer ) {
+          const blob = new Blob( [ result ], { type: 'application/octet-stream' } )
+          const reader = new FileReader()
+          reader.onload = function(){
+            const buffer = Buffer.from(reader.result)
+            resolve(buffer)
+          }
+          reader.onloadend = function(){
+            releaseHack()
+          }
+          reader.readAsArrayBuffer(blob)
+        }
+      }, options)
+    }
+
   })
 }
 

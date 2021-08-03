@@ -4,3 +4,4 @@
 !.vscode/launch.json
 src/glb/*
 src/dxf/*
+src/stl/*

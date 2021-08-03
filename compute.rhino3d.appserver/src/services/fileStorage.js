@@ -1,9 +1,9 @@
 const fs = require('fs')
 const path = require('path')
 
-const saveGlbFile = (buffer, fileName) => {
+const saveOutputFile = (buffer, folderName, fileName) => {
   return new Promise((resolve, reject) => {
-    const pathName = path.join(__dirname, "../glb/", fileName)
+    const pathName = path.join(__dirname, `../${folderName}/`, fileName)
     fs.writeFile(pathName, buffer, {}, (err, res) => {
       if(err){
         reject(err)
@@ -15,5 +15,5 @@ const saveGlbFile = (buffer, fileName) => {
 }
 
 module.exports = {
-  saveGlbFile
+  saveOutputFile
 }

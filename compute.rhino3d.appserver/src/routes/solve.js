@@ -223,13 +223,6 @@ function decodeItem(item, rhino) {
 
 function testMode(responseStr, fileName){
 
-  console.log("!!!!!!!!!!!!11")
-  console.log("!!!!!!!!!!!!11")
-  console.log("!!!!!!!!!!!!11")
-  console.log("!!!!!!!!!!!!11")
-  console.log("!!!!!!!!!!!!11")
-  console.log("mc: ", mc)
-
   const responseJson = JSON.parse(responseStr)
   const values = responseJson.values
   fileName = fileName ? fileName : "temp.glb"

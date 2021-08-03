@@ -37,6 +37,7 @@ app.use('/definition', require('./routes/definition'))
 app.use('/api', require('./routes/api'))
 app.use('/dxf', express.static(__dirname + '/dxf'))
 app.use('/glb', express.static(__dirname + '/glb'))
+app.use('/stl', express.static(__dirname + '/stl'))
 
 // ref: https://github.com/expressjs/express/issues/3589
 // remove line when express@^4.17

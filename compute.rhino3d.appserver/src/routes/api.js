@@ -17,7 +17,7 @@ const memjs = require('memjs')
 // Services
 const { getCache, setCache } = require('../services/cache')
 const { solveGH, generateRhinoObj, generateBuffer } = require('../services/rhino')
-const { saveGlbFile } = require('../services/fileStorage')
+const { saveOutputFile } = require('../services/fileStorage')
 
 // In case you have a local memached server
 // process.env.MEMCACHIER_SERVERS = '127.0.0.1:11211'
@@ -43,6 +43,10 @@ router.post('/glb', upload.single('File'), async (req, res) => {
   } else if (["0", "1", "2", "3"].indexOf(req.body["RH_IN:number"]) == -1){
     return res.status(403).json({
       msg: "RH_IN:number mnust be one of [0,1,2,3]"
+    })
+  } else if (["stl", "glb"].indexOf(req.body["Format"]) == -1){
+    return res.status(403).json({
+      msg: "Format mnust be one of [stl,glb]"
     })
   }
 
@@ -70,11 +74,12 @@ router.post('/glb', upload.single('File'), async (req, res) => {
         rhinoMeshObject,
         rhinoMaterialObject,
       } = await generateRhinoObj(res.locals.cacheResult)
-      const buffer = await generateBuffer(rhinoMeshObject, rhinoMaterialObject)
-      let glbFileName = req.file.filename.replace("dxf", "glb")
-      await saveGlbFile(buffer, glbFileName)
+      const buffer = await generateBuffer(rhinoMeshObject, rhinoMaterialObject, req.body.Format)
+      let folderName = req.body.Format
+      let fileName = req.file.filename.replace("dxf", req.body.Format)
+      await saveOutputFile(buffer, folderName, fileName)
       return res.json({
-        glb: glbFileName
+        file: fileName
       })
     } else {
       let fullUrl = req.protocol + '://' + req.get('host')
@@ -103,11 +108,12 @@ router.post('/glb', upload.single('File'), async (req, res) => {
         rhinoMeshObject,
         rhinoMaterialObject,
       } = await generateRhinoObj(result)
-      const buffer = await generateBuffer(rhinoMeshObject, rhinoMaterialObject)
-      let glbFileName = req.file.filename.replace("dxf", "glb")
-      await saveGlbFile(buffer, glbFileName)
+      const buffer = await generateBuffer(rhinoMeshObject, rhinoMaterialObject, req.body.Format)
+      let folderName = req.body.Format
+      let fileName = req.file.filename.replace("dxf", req.body.Format)
+      await saveOutputFile(buffer, folderName, fileName)
       return res.json({
-        glb: glbFileName
+        file: fileName
       })
     }
   } catch (error) {
