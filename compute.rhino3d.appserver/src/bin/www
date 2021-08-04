@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 const definitions = require('../definitions.js').registerDefinitions()
 const throng = require('throng')
+const dotenv = require('dotenv')
+dotenv.config()
 
 const WORKERS = process.env.WEB_CONCURRENCY || 1
 

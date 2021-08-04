@@ -5,3 +5,4 @@
 src/glb/*
 src/dxf/*
 src/stl/*
+.env
