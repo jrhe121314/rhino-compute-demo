@@ -56,7 +56,7 @@ router.post('/glb', upload.single('File'), async (req, res) => {
 
   try{
 
-    const ghScript = "nameplate_definition.gh"
+    const ghScript = "nameplate_definition_v2.gh"
     req.body["RH_IN:path"] = path.resolve(req.file.path)
     let definition = req.app.get('definitions').find(o => o.name === ghScript)
     const key = {}
@@ -72,7 +72,7 @@ router.post('/glb', upload.single('File'), async (req, res) => {
 
       const {
         rhinoMeshObject,
-        rhinoMaterialObject,
+        // rhinoMaterialObject,
       } = await generateRhinoObj(res.locals.cacheResult)
       // const buffer = await generateBuffer(rhinoMeshObject, rhinoMaterialObject, req.body.Format)
       const buffer = await generateBufferV2(rhinoMeshObject, req.body["RH_IN:number"], req.body.Format)
@@ -107,7 +107,7 @@ router.post('/glb', upload.single('File'), async (req, res) => {
 
       const {
         rhinoMeshObject,
-        rhinoMaterialObject,
+        // rhinoMaterialObject,
       } = await generateRhinoObj(result)
       // const buffer = await generateBuffer(rhinoMeshObject, rhinoMaterialObject, req.body.Format)
       const buffer = await generateBufferV2(rhinoMeshObject, req.body["RH_IN:number"], req.body.Format)

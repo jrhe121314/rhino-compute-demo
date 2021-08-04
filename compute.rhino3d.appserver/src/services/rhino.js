@@ -40,7 +40,7 @@ const generateRhinoObj = (responseStr) => {
   return new Promise((resolve, reject) => {
     rhino3dm().then((rhino) => {
       let rhinoMeshObject
-      let rhinoMaterialObject
+      // let rhinoMaterialObject
       // for each output (RH_OUT:*)...
       for ( let i = 0; i < values.length; i ++ ) {
         // ...iterate through data tree structure...
@@ -59,7 +59,7 @@ const generateRhinoObj = (responseStr) => {
       }
       resolve({
         rhinoMeshObject,
-        rhinoMaterialObject,
+        // rhinoMaterialObject,
       })
     })
   })
