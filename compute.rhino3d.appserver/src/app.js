@@ -1,4 +1,3 @@
-const createError = require('http-errors')
 const express = require('express')
 const compression = require('compression')
 const logger = require('morgan')
