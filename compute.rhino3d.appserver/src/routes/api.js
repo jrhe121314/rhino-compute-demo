@@ -16,7 +16,7 @@ const memjs = require('memjs')
 
 // Services
 const { getCache, setCache } = require('../services/cache')
-const { solveGH, generateRhinoObj, generateBuffer, generateBufferV2 } = require('../services/rhino')
+const { solveGH, generateRhinoObj, generateBuffer } = require('../services/rhino')
 const { saveOutputFile } = require('../services/fileStorage')
 
 // In case you have a local memached server
@@ -55,7 +55,9 @@ router.post('/glb', upload.single('File'), async (req, res) => {
   res.setHeader('Content-Type', 'application/json')
 
   try{
-
+    // 1. check unique cache
+    // const ghScript = "diamond_sku.gh"
+    // const ghScript = "nameplate_definition_v2_signpainter.gh"
     const ghScript = "nameplate_definition_v2.gh"
     req.body["RH_IN:path"] = path.resolve(req.file.path)
     let definition = req.app.get('definitions').find(o => o.name === ghScript)
@@ -66,19 +68,18 @@ router.post('/glb', upload.single('File'), async (req, res) => {
     res.locals.cacheKey = cacheKey
     res.locals.cacheResult = getCache(mc, cacheKey)
 
+    const skuNumber = req.body["RH_IN:number"]
+    const format = req.body.Format
     if(res.locals.cacheResult !== null) {
       const timespanPost = Math.round(performance.now() - timePostStart)
       res.setHeader('Server-Timing', `cacheHit;dur=${timespanPost}`)
 
       const {
-        rhinoMeshObject,
-        // rhinoMaterialObject,
+        rhinoMeshObjectArray,
       } = await generateRhinoObj(res.locals.cacheResult)
-      // const buffer = await generateBuffer(rhinoMeshObject, rhinoMaterialObject, req.body.Format)
-      const buffer = await generateBufferV2(rhinoMeshObject, req.body["RH_IN:number"], req.body.Format)
-      let folderName = req.body.Format
-      let fileName = req.file.filename.replace("dxf", req.body.Format)
-      await saveOutputFile(buffer, folderName, fileName)
+      const buffer = await generateBuffer(rhinoMeshObjectArray, skuNumber, format)
+      let fileName = req.file.filename.replace("dxf", format)
+      await saveOutputFile(buffer, format, fileName)
       return res.json({
         file: fileName
       })
@@ -91,6 +92,7 @@ router.post('/glb', upload.single('File'), async (req, res) => {
         result,
       } = await solveGH(req.body, definitionPath)
 
+      // dummy
       const timeComputeServerCallComplete = performance.now()
       let computeTimings = computeServerTiming.get('server-timing')
       let sum = 0
@@ -104,16 +106,14 @@ router.post('/glb', upload.single('File'), async (req, res) => {
       const timing = `setup;dur=${timespanSetup}, ${computeTimings}, network;dur=${timespanComputeNetwork}`
       res.setHeader('Server-Timing', timing)
       setCache(mc, cacheKey, result)
+      // dummy
 
       const {
-        rhinoMeshObject,
-        // rhinoMaterialObject,
+        rhinoMeshObjectArray
       } = await generateRhinoObj(result)
-      // const buffer = await generateBuffer(rhinoMeshObject, rhinoMaterialObject, req.body.Format)
-      const buffer = await generateBufferV2(rhinoMeshObject, req.body["RH_IN:number"], req.body.Format)
-      let folderName = req.body.Format
-      let fileName = req.file.filename.replace("dxf", req.body.Format)
-      await saveOutputFile(buffer, folderName, fileName)
+      const buffer = await generateBuffer(rhinoMeshObjectArray, skuNumber, format)
+      let fileName = req.file.filename.replace("dxf", format)
+      await saveOutputFile(buffer, format, fileName)
       return res.json({
         file: fileName
       })

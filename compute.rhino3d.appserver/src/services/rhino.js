@@ -1,6 +1,11 @@
 const compute = require('compute-rhino3d')
 const rhino3dm = require("rhino3dm")
 
+const THREE = require('three')
+const Canvas = require('canvas')
+const { Blob, FileReader } = require('vblob')
+const XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest
+
 const solveGH = (input, definitionPath) => {
   return new Promise((resolve, reject) => {
     let computeServerTiming
@@ -39,8 +44,7 @@ const generateRhinoObj = (responseStr) => {
   const values = responseJson.values
   return new Promise((resolve, reject) => {
     rhino3dm().then((rhino) => {
-      let rhinoMeshObject
-      // let rhinoMaterialObject
+      let rhinoMeshObjectArray = []
       // for each output (RH_OUT:*)...
       for ( let i = 0; i < values.length; i ++ ) {
         // ...iterate through data tree structure...
@@ -49,8 +53,10 @@ const generateRhinoObj = (responseStr) => {
           // ...and for each branch...
           for( let j = 0; j < branch.length; j ++) {
             if (branch[j].type === 'Rhino.Geometry.Mesh') {
-              rhinoMeshObject = _decodeItem(branch[j], rhino)
-            } 
+              let meshObj = _decodeItem(branch[j], rhino)
+              meshObj.name = values[i].ParamName
+              rhinoMeshObjectArray.push(meshObj)
+            }
             // else if (branch[j].type === 'Rhino.Display.DisplayMaterial') {
             //   rhinoMaterialObject = _decodeItem(branch[j], rhino)
             // }
@@ -58,54 +64,62 @@ const generateRhinoObj = (responseStr) => {
         }
       }
       resolve({
-        rhinoMeshObject,
-        // rhinoMaterialObject,
+        rhinoMeshObjectArray,
       })
     })
   })
 }
 
-const generateBuffer = (rhinoMesh, materialObject, format) => {
-  // Hack in nodejs
-  const THREE = require('three');
-  const Canvas = require('canvas');
-  const { Blob, FileReader } = require('vblob');
-  const XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
-
-  global.window = global;
-  global.Blob = Blob;
-  global.XMLHttpRequest = XMLHttpRequest;
-  global.FileReader = FileReader;
-  global.THREE = THREE;
-  global.document = {
-    createElement: (nodeName) => {
-      if (nodeName !== 'canvas') throw new Error(`Cannot create node ${nodeName}`);
-      const canvas = new Canvas(256, 256);
-      return canvas;
-    }
-  };
-  // End of hack
+const generateBuffer = (rhinoMeshArr, skuNumber, format) => {
+  injectHack()
 
   // Three loader
   let loader = new THREE.BufferGeometryLoader()
-  let geometry = loader.parse(rhinoMesh.toThreejsJSON())
-
-  // Material
-  let threeMaterial = new THREE.MeshBasicMaterial()
-  let diffuse = `rgb(${materialObject.Diffuse})`
-  const color = new THREE.Color(diffuse);
-  threeMaterial.color = color
-
-  // Mesh
-  let newMesh = new THREE.Mesh(geometry, threeMaterial)
-  newMesh.name = "sku"
-  newMesh.material.name = "sku"
+  let resultArr = []
+  for(let i = 0; i < rhinoMeshArr.length; i++){
+    let rhinoMesh = rhinoMeshArr[i]
+    let geometry = loader.parse(rhinoMesh.toThreejsJSON())
+    let newMesh
+    if (rhinoMesh.name == "RH_OUT:mesh") {
+      // Material
+      let threeMaterial = new THREE.MeshBasicMaterial()
+      let diffuse
+      switch (skuNumber){
+        case "0":
+          diffuse = `rgb(242, 212, 39)`
+          break
+        case "1":
+          diffuse = `rgb(227, 188, 195)`
+          break
+        case "2":
+          diffuse = `rgb(143, 148, 147)`
+          break
+        case "3":
+          diffuse = `rgb(204, 204, 204)`
+          break
+        default:
+          diffuse = `rgb(204, 204, 204)`
+          break
+      }
+      const color = new THREE.Color(diffuse);
+      threeMaterial.color = color
+      // Mesh
+      newMesh = new THREE.Mesh(geometry, threeMaterial)
+      newMesh.name = "sku"
+      newMesh.material.name = "sku"
+    } else { // RH_OUT:mesh_gem
+      newMesh = new THREE.Mesh(geometry)
+      newMesh.name = "s1"
+      newMesh.material.name = "s1"
+    }
+    resultArr.push(newMesh)
+  }
 
   return new Promise((resolve, reject) => {
     if (format == 'stl') {
-      require('three/examples/js/exporters/STLExporter');
-      const exporter = new THREE.STLExporter();
-      const result = exporter.parse(newMesh)
+      require('three/examples/js/exporters/STLExporter')
+      const exporter = new THREE.STLExporter()
+      const result = exporter.parse(resultArr[0])
       const blob = new Blob( [result], { type : 'text/plain' } )
       const reader = new FileReader()
       reader.onload = function(){
@@ -115,11 +129,14 @@ const generateBuffer = (rhinoMesh, materialObject, format) => {
       reader.onloadend = function(){
         releaseHack()
       }
+      reader.onerror = function(error){
+        releaseHack()
+      }
       reader.readAsArrayBuffer(blob)
     } else {
       // glb by default
-      require('three/examples/js/exporters/GLTFExporter');
-      const exporter = new THREE.GLTFExporter();
+      require('three/examples/js/exporters/GLTFExporter')
+      const exporter = new THREE.GLTFExporter()
       const options = {
         trs: false,
         onlyVisible: true,
@@ -127,7 +144,7 @@ const generateBuffer = (rhinoMesh, materialObject, format) => {
         binary: true,
         maxTextureSize: 4096 || Infinity // To prevent NaN value
       };
-      exporter.parse(newMesh, (result) => {
+      exporter.parse(resultArr, (result) => {
         if ( result instanceof ArrayBuffer ) {
           const blob = new Blob( [ result ], { type: 'application/octet-stream' } )
           const reader = new FileReader()
@@ -136,6 +153,9 @@ const generateBuffer = (rhinoMesh, materialObject, format) => {
             resolve(buffer)
           }
           reader.onloadend = function(){
+            releaseHack()
+          }
+          reader.onerror = function(){
             releaseHack()
           }
           reader.readAsArrayBuffer(blob)
@@ -146,112 +166,28 @@ const generateBuffer = (rhinoMesh, materialObject, format) => {
   })
 }
 
-const generateBufferV2 = (rhinoMesh, materialObject, format) => {
-  // Hack in nodejs
-  const THREE = require('three');
-  const Canvas = require('canvas');
-  const { Blob, FileReader } = require('vblob');
-  const XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
-
-  global.window = global;
-  global.Blob = Blob;
-  global.XMLHttpRequest = XMLHttpRequest;
-  global.FileReader = FileReader;
-  global.THREE = THREE;
+// Hack in nodejs
+const injectHack = () => {
+  global.window = global
+  global.Blob = Blob
+  global.XMLHttpRequest = XMLHttpRequest
+  global.FileReader = FileReader
+  global.THREE = THREE
   global.document = {
     createElement: (nodeName) => {
-      if (nodeName !== 'canvas') throw new Error(`Cannot create node ${nodeName}`);
-      const canvas = new Canvas(256, 256);
-      return canvas;
+      if (nodeName !== 'canvas') throw new Error(`Cannot create node ${nodeName}`)
+      const canvas = new Canvas(256, 256)
+      return canvas
     }
-  };
-  // End of hack
-
-  // Three loader
-  let loader = new THREE.BufferGeometryLoader()
-  let geometry = loader.parse(rhinoMesh.toThreejsJSON())
-
-  // Material
-  let threeMaterial = new THREE.MeshBasicMaterial()
-
-  let diffuse
-  switch (materialObject){
-    case "0":
-      diffuse = `rgb(242, 212, 39)`
-      break
-    case "1":
-      diffuse = `rgb(227, 188, 195)`
-      break
-    case "2":
-      diffuse = `rgb(143, 148, 147)`
-      break
-    case "3":
-      diffuse = `rgb(204, 204, 204)`
-      break
-    default:
-      diffuse = `rgb(204, 204, 204)`
-      break
   }
-
-  const color = new THREE.Color(diffuse);
-  threeMaterial.color = color
-
-  // Mesh
-  let newMesh = new THREE.Mesh(geometry, threeMaterial)
-  newMesh.name = "sku"
-  newMesh.material.name = "sku"
-
-  return new Promise((resolve, reject) => {
-    if (format == 'stl') {
-      require('three/examples/js/exporters/STLExporter');
-      const exporter = new THREE.STLExporter();
-      const result = exporter.parse(newMesh)
-      const blob = new Blob( [result], { type : 'text/plain' } )
-      const reader = new FileReader()
-      reader.onload = function(){
-        const buffer = Buffer.from(reader.result)
-        resolve(buffer)
-      }
-      reader.onloadend = function(){
-        releaseHack()
-      }
-      reader.readAsArrayBuffer(blob)
-    } else {
-      // glb by default
-      require('three/examples/js/exporters/GLTFExporter');
-      const exporter = new THREE.GLTFExporter();
-      const options = {
-        trs: false,
-        onlyVisible: true,
-        truncateDrawRange: true,
-        binary: true,
-        maxTextureSize: 4096 || Infinity // To prevent NaN value
-      };
-      exporter.parse(newMesh, (result) => {
-        if ( result instanceof ArrayBuffer ) {
-          const blob = new Blob( [ result ], { type: 'application/octet-stream' } )
-          const reader = new FileReader()
-          reader.onload = function(){
-            const buffer = Buffer.from(reader.result)
-            resolve(buffer)
-          }
-          reader.onloadend = function(){
-            releaseHack()
-          }
-          reader.readAsArrayBuffer(blob)
-        }
-      }, options)
-    }
-
-  })
 }
 
 const releaseHack = () => {
-  global.window = undefined;
-  global.Blob = undefined;
-  global.XMLHttpRequest = undefined;
-  global.FileReader = undefined;
-  global.THREE = undefined;
+  global.window = undefined
+  global.Blob = undefined
+  global.XMLHttpRequest = undefined
+  global.FileReader = undefined
+  global.THREE = undefined
   global.document = undefined
 }
 
@@ -259,7 +195,6 @@ module.exports = {
   solveGH,
   generateRhinoObj,
   generateBuffer,
-  generateBufferV2,
 }
 
 
@@ -270,10 +205,11 @@ const _decodeItem = (item, rhino) => {
     try {
         return rhino.DracoCompression.decompressBase64String(data)
     } catch {} // ignore errors (maybe the string was just a string...)
-  } else if (item.type === 'Rhino.Display.DisplayMaterial') {
-    return data
   } else if (typeof data === 'object') {
     return rhino.CommonObject.decode(data)
   }
+  // else if (item.type === 'Rhino.Display.DisplayMaterial') {
+  //   return data
+  // }
   return null
 }

@@ -3,8 +3,6 @@ const definitions = require('../definitions.js').registerDefinitions()
 const throng = require('throng')
 const dotenv = require('dotenv')
 const http = require('http')
-const https = require('https')
-const fs = require('fs')
 dotenv.config()
 
 const WORKERS = process.env.WEB_CONCURRENCY || 1
@@ -21,30 +19,16 @@ function start(id){
  */
   console.log(`Started worker ${ id }`)
 
-  var { app, app2 } = require('../app')
-  // var debug = require('debug')('compute.appserver:server')
-
+  var { app } = require('../app')
   var port = normalizePort(process.env.PORT || '3000')
   app.set('port', port)
-  const options = {
-    key: fs.readFileSync('key.pem', 'utf8'),
-    cert: fs.readFileSync('server.crt', 'utf8')
-  }
-  var server = https.createServer(options, app)
+  app.set('definitions', definitions)
+  var server = http.createServer(app)
   server.listen(port)
   server.on('error', onError)
   server.on('listening', onListening)
 
-  app2.set('definitions', definitions)
-  var port2 = normalizePort(process.env.PORT || '3001')
-  app2.set('port', port2)
-  var server2 = http.createServer(app2)
-  server2.listen(port2)
-  server2.on('error', onError)
-  server2.on('listening', onListening)
-
-  console.log("https port: ", port)
-  console.log("http port: ", port2)
+  console.log("http port: ", port)
 
   function normalizePort(val) {
     var port = parseInt(val, 10)

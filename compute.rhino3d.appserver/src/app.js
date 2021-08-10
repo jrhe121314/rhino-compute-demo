@@ -5,7 +5,6 @@ const cors = require('cors')
 
 // create express web server app
 const app = express()
-const app2 = express()
 
 // log requests to the terminal when running in a local debug setup
 if(process.env.NODE_ENV !== 'production')
@@ -15,11 +14,6 @@ app.use(express.json({limit: '10mb'}))
 app.use(express.urlencoded({ extended: false }))
 app.use(cors())
 app.use(compression())
-
-app2.use(express.json({limit: '10mb'}))
-app2.use(express.urlencoded({ extended: false }))
-app2.use(cors())
-app2.use(compression())
 
 // Define URL for our compute server
 // - For local debugging on the same computer, compute.geometry.exe is
@@ -41,8 +35,8 @@ app.get('/favicon.ico', (req, res) => res.status(200))
 app.use('/dxf', express.static(__dirname + '/dxf'))
 app.use('/glb', express.static(__dirname + '/glb'))
 app.use('/stl', express.static(__dirname + '/stl'))
-app2.use('/definition', require('./routes/definition'))
-app2.use('/api', require('./routes/api'))
+app.use('/definition', require('./routes/definition'))
+app.use('/api', require('./routes/api'))
 
 // ref: https://github.com/expressjs/express/issues/3589
 // remove line when express@^4.17
@@ -71,5 +65,4 @@ app.use(function(err, req, res, next) {
 
 module.exports = {
   app,
-  app2
 }
