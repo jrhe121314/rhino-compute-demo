@@ -40,6 +40,8 @@
   "scripts": {
     "start": "node ./src/bin/www",
     "test": "nodemon ./src/bin/www",
+    "test2": "nodemon --max-old-space-size=4096 ./src/bin/www",
+    "dev": "pm2 start --max-old-space-size=4096 ./src/bin/www",
     "lint": "eslint src/*.js --fix && eslint src/routes/*.js --fix && eslint src/bin/www --fix",
     "start-args": "node ./src/bin/www --computeUrl http://localhost:8081/"
   },

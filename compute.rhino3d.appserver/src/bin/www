@@ -6,6 +6,7 @@ const http = require('http')
 dotenv.config()
 
 const WORKERS = process.env.WEB_CONCURRENCY || 1
+process.setMaxListeners(0)
 
 throng({
   workers: WORKERS,
@@ -19,16 +20,20 @@ function start(id){
  */
   console.log(`Started worker ${ id }`)
 
-  var { app } = require('../app')
-  var port = normalizePort(process.env.PORT || '3000')
+  var { app, app2 } = require('../app')
+  var port = normalizePort('3000')
   app.set('port', port)
-  app.set('definitions', definitions)
   var server = http.createServer(app)
   server.listen(port)
-  server.on('error', onError)
-  server.on('listening', onListening)
 
-  console.log("http port: ", port)
+  var port2 = normalizePort('3001')
+  app2.set('port', port2)
+  var server2 = http.createServer(app2)
+  server2.listen(port2)
+  app2.set('definitions', definitions)
+
+  console.log("get http port: ", port)
+  console.log("post http port: ", port2)
 
   function normalizePort(val) {
     var port = parseInt(val, 10)
